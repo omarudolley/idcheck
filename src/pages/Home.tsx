@@ -303,14 +303,9 @@ const [apiError, setApiError] = useState<string>("");
     [countryCode]
   );
 
-  const taxResult = validateField(taxId, selectedCountry.taxPattern);
-  const companyResult = validateField(companyId, selectedCountry.companyPattern);
+
   const hasInput = normalize(taxId) || normalize(companyId);
- const passed =
-  hasInput &&
-  (!normalize(taxId) || taxResult.valid) &&
-  (!normalize(companyId) || companyResult.valid) &&
-  (submitted ? apiResult?.valid !== false : true);
+
 
 const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
   event.preventDefault();
@@ -339,12 +334,15 @@ const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     const data: ApiResult = await response.json().catch(() => null);
 
     
-    if (!response.ok || data?.valid === false) {
-      const message =
-        data?.errors?.[0]?.message ||
-        `API error ${response.status}`;
-
-      throw new Error(message);
+    if (data?.valid === false) {
+ 
+        setApiResult(
+          {
+            valid: data.valid,
+            errors: data.errors 
+          }
+        )
+        return 
     }
 
     setApiResult(data);
@@ -359,6 +357,32 @@ const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
   }
 };
 
+function getFieldResult(
+  field: "tax_id" | "company_id",
+  apiResult: ApiResult | null,
+  submitted: boolean
+) {
+  // before submit → neutral
+  if (!submitted || !apiResult) {
+    return { valid: true, message: undefined };
+  }
+
+  const error = apiResult.errors?.find(e => e.field === field);
+
+  return {
+    valid: !error,
+    message: error?.message
+  };
+}
+
+const taxResult = getFieldResult("tax_id", apiResult, submitted);
+const companyResult = getFieldResult("company_id", apiResult, submitted);
+
+ const passed =
+  hasInput &&
+  (!normalize(taxId) || taxResult.valid) &&
+  (!normalize(companyId) || companyResult.valid) &&
+  (submitted ? apiResult?.valid !== false : true);
   return (
     <main className="relative min-h-screen overflow-hidden bg-page px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <div className="tax-grid pointer-events-none absolute inset-0 opacity-80" />
@@ -478,8 +502,20 @@ const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
                   {passed ? "Validation passed" : "Review needed"}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <ResultCard label="Tax ID" value={taxId} result={taxResult} hint={selectedCountry.taxHint} />
-                  <ResultCard label="Company ID" value={companyId} result={companyResult} hint={selectedCountry.companyHint} />
+<div className="grid gap-3 sm:grid-cols-2">
+  <ResultCard
+    label="Tax ID"
+    value={taxId}
+    result={taxResult}
+    hint={selectedCountry.taxHint}
+  />
+  <ResultCard
+    label="Company ID"
+    value={companyId}
+    result={companyResult}
+    hint={selectedCountry.companyHint}
+  />
+</div>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4 shadow-card">
                   <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">API validation</p>
@@ -518,17 +554,47 @@ const ResultCard = ({
 }: {
   label: string;
   value: string;
-  result: ReturnType<typeof validateField>;
+  result: ApiResult;
   hint: string;
 }) => {
-  const toneClass = result.tone === "success" ? "text-success" : result.tone === "warning" ? "text-warning" : "text-info";
+  const normalizedValue = normalize(value);
+
+  const primaryError = result.errors?.find(e => e.field)?.message
+    ?? result.errors?.[0]?.message;
+
+  const toneClass = result.valid
+    ? "text-success"
+    : "text-warning";
+
+  const displayLabel = result.valid
+    ? "Valid"
+    : primaryError ?? "Invalid value";
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-card">
-      <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 break-all text-sm font-bold text-card-foreground">{normalize(value) || "—"}</p>
-      <p className={`mt-3 text-sm font-black ${toneClass}`}>{result.label}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">Expected: {hint}</p>
+      <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+
+      <p className="mt-1 break-all text-sm font-bold text-card-foreground">
+        {normalizedValue || "—"}
+      </p>
+
+      <p className={`mt-3 text-sm font-black ${toneClass}`}>
+        {displayLabel}
+      </p>
+
+      {!result.valid && result.errors?.length ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {result.errors
+            .map(e => (e.field ? `${e.field}: ${e.message}` : e.message))
+            .join(" • ")}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Expected: {hint}
+        </p>
+      )}
     </div>
   );
 };
