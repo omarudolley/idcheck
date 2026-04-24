@@ -295,8 +295,8 @@ const Index = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [apiResult, setApiResult] = useState<ApiResult | null>(null);
-  const [apiError, setApiError] = useState<string>("");
+ const [apiResult, setApiResult] = useState<ApiResult | null>(null);
+const [apiError, setApiError] = useState<string>("");
 
   const selectedCountry = useMemo(
     () => countries.find((country) => country.code === countryCode) ?? countries[0],
@@ -306,58 +306,58 @@ const Index = () => {
   const taxResult = validateField(taxId, selectedCountry.taxPattern);
   const companyResult = validateField(companyId, selectedCountry.companyPattern);
   const hasInput = normalize(taxId) || normalize(companyId);
-  const passed =
-    hasInput &&
-    (!normalize(taxId) || taxResult.valid) &&
-    (!normalize(companyId) || companyResult.valid) &&
-    (submitted ? apiResult?.valid !== false : true);
+ const passed =
+  hasInput &&
+  (!normalize(taxId) || taxResult.valid) &&
+  (!normalize(companyId) || companyResult.valid) &&
+  (submitted ? apiResult?.valid !== false : true);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
 
-    setSubmitted(true);
-    setApiResult(null);
-    setApiError("");
+  setSubmitted(true);
+  setApiResult(null);
+  setApiError("");
 
-    if (!hasInput) return;
+  if (!hasInput) return;
 
-    const payload = {
-      country: selectedCountry.code,
-      company_id: normalize(companyId) || null,
-      tax_id: normalize(taxId) || null,
-    };
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch(VALIDATION_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data: ApiResult = await response.json().catch(() => null);
-
-
-      if (!response.ok || data?.valid === false) {
-        const message =
-          data?.errors?.[0]?.message ||
-          `API error ${response.status}`;
-
-        throw new Error(message);
-      }
-
-      setApiResult(data);
-    } catch (error) {
-      setApiError(
-        error instanceof Error
-          ? error.message
-          : "Validation API request failed"
-      );
-    } finally {
-      setIsLoading(false);
-    }
+  const payload = {
+    country: selectedCountry.code,
+    company_id: normalize(companyId) || null,
+    tax_id: normalize(taxId) || null,
   };
+
+  setIsLoading(true);
+
+  try {
+    const response = await fetch(VALIDATION_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data: ApiResult = await response.json().catch(() => null);
+
+    
+    if (!response.ok || data?.valid === false) {
+      const message =
+        data?.errors?.[0]?.message ||
+        `API error ${response.status}`;
+
+      throw new Error(message);
+    }
+
+    setApiResult(data);
+  } catch (error) {
+    setApiError(
+      error instanceof Error
+        ? error.message
+        : "Validation API request failed"
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-page px-4 py-8 text-foreground sm:px-6 lg:px-8">
